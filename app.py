@@ -5,6 +5,7 @@ from flask_limiter.util import get_remote_address
 from bs4 import BeautifulSoup
 import requests
 import os
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 CORS(app)
@@ -15,6 +16,13 @@ limiter = Limiter(
     app=app,
     default_limits=["10 per minute"]
 )
+
+def is_valid_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme in ["http", "https"], result.netloc])
+    except:
+        return False
 
 def extract_exit_links(url):
     try:
@@ -31,12 +39,15 @@ def extract_exit_links(url):
         return [f"Error: {str(e)}"]
 
 @app.route('/api/exit-links', methods=['POST'])
-@limiter.limit("10 per minute")  # endpoint-specific limit (optional)
+@limiter.limit("10 per minute")
 def get_exit_links():
     data = request.get_json()
     url = data.get('url')
-    if not url:
-        return jsonify({"error": "No URL provided"}), 400
+
+    # ✅ Validate the URL format
+    if not url or not is_valid_url(url):
+        return jsonify({"error": "Invalid or missing URL"}), 400
+
     links = extract_exit_links(url)
     return jsonify({"links": links})
 
