@@ -1,0 +1,35 @@
+from flask import Flask, request, jsonify
+from bs4 import BeautifulSoup
+import requests
+
+app = Flask(__name__)
+
+def extract_exit_links(url):
+    try:
+        domain = url.split('/')[2]
+        html = requests.get(url, timeout=5).text
+        soup = BeautifulSoup(html, 'html.parser')
+        links = []
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            if href.startswith('http') and domain not in href:
+                links.append(href)
+        return list(set(links))
+    except Exception as e:
+        return [f"Error: {str(e)}"]
+
+@app.route('/api/exit-links', methods=['POST'])
+def get_exit_links():
+    data = request.get_json()
+    url = data.get('url')
+    if not url:
+        return jsonify({"error": "No URL provided"}), 400
+    links = extract_exit_links(url)
+    return jsonify({"links": links})
+
+@app.route('/')
+def home():
+    return "Exit Link Checker API is live!"
+
+if __name__ == '__main__':
+    app.run(debug=True)
