@@ -1,11 +1,20 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from bs4 import BeautifulSoup
 import requests
 import os
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)
+
+# Rate limiter: 10 requests per minute per IP
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["10 per minute"]
+)
 
 def extract_exit_links(url):
     try:
@@ -22,6 +31,7 @@ def extract_exit_links(url):
         return [f"Error: {str(e)}"]
 
 @app.route('/api/exit-links', methods=['POST'])
+@limiter.limit("10 per minute")  # endpoint-specific limit (optional)
 def get_exit_links():
     data = request.get_json()
     url = data.get('url')
